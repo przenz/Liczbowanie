@@ -23,3 +23,5 @@ HEADERS += mainwindow.h \
 FORMS += mainwindow.ui
 
 RC_FILE = icofile.rc
+
+LIBS += -lquadmath

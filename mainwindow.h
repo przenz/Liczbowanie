@@ -16,7 +16,7 @@ public:
     ~MainWindow();
 
 private:
-    static const float wersjaProgramuLiczbowanie = 0.82f;
+    static const float wersjaProgramuLiczbowanie = 0.90f;
     Ui::MainWindow *ui;
     QChar *alfabetHeb;
     int *wartosciHeb;
@@ -46,7 +46,6 @@ private slots:
     void on_grekWklej_clicked();
     void on_actionWyswietl_alfabety_triggered();
     void on_actionAktualizuj_program_triggered();
-    void on_groupBoxGrek_toggled();
     void on_hebKopiuj_clicked();
     void on_grekKopiuj_clicked();
 

@@ -8,8 +8,9 @@
 #include <QDesktopServices>
 #include <qmath.h>
 #include <quadmath.h>
-
 #include <limits>
+#include <qdebug.h>
+#include <iostream>
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -19,7 +20,6 @@ MainWindow::MainWindow(QWidget *parent) :
 
     this->setWindowTitle("Liczbowanie " + QString::number(wersjaProgramu(),'f',2) );
 
-    //setCentralWidget(ui->tabWidget);
     ui->tableWidgetHeb->setColumnWidth(0,40);
     ui->tableWidgetHeb->setColumnWidth(1,50);
     ui->tableWidgetHeb->setColumnWidth(2,100);
@@ -38,44 +38,80 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+bool testFloat128( __float128 & iloczyn, int wartoscHeb )
+{
+    char float128char[64];
+    int pos = 35;
+    const __float128 eps = 1.0e-32;
+    // Iloczyn from char
+    quadmath_snprintf(float128char, sizeof float128char, "%.31Qe", iloczyn );
+    float128char[pos] = '0';
+    float128char[pos+1] = '0';
+    float128char[pos+2] = '\0';
+
+    __float128 iloczynFromChar = strtoflt128(float128char, NULL);
+
+    // Test iloczyn from char
+    __float128 testIloczyn = iloczynFromChar * wartoscHeb;
+    quadmath_snprintf(float128char, sizeof float128char, "%.31Qe", testIloczyn );
+
+    __float128 testIloczynFromChar = strtoflt128(float128char, NULL);
+    quadmath_snprintf(float128char, sizeof float128char, "%.31Qe", testIloczynFromChar );
+
+    __float128 delta = fabsq( testIloczynFromChar / wartoscHeb - iloczynFromChar );
+    quadmath_snprintf(float128char, sizeof float128char, "%.31Qe", delta );
+
+    if ( delta > eps ) return true;
+    return false;
+}
+
+bool testDouble( double iloczyn, int wartoscHeb )
+{
+    const double eps = 1.0e-14;
+    double testIloczyn = iloczyn * wartoscHeb; // Possible overflow
+
+    qDebug() << QString::number( fabs( (testIloczyn / wartoscHeb) - iloczyn), 'g', 20);
+    qDebug() << QString::number(1.0e-13, 'g', 20);
+
+    if ( fabs( (testIloczyn / wartoscHeb) - iloczyn) > eps ) {
+        return true;
+    }
+    return false;
+}
+
 void MainWindow::hebOblicz(){
     QString text;
     if( !ui->hebTextEdit->getZaznaczonyTekst().isNull() )
         text = ui->hebTextEdit->getZaznaczonyTekst();
     else
         text=ui->hebTextEdit->toPlainText();
+
     if(text.size()>=0){
-        quint64 suma=0;
-        quint64 sumaNorm=0;
-        quint64 sumaPierwsze=0;
-        quint64 iloczyn=1;
-        quint64 iloczynNorm=1;
-        quint64 iloczynPierwsze=1;
-        quint64 gzyms=1;
-        quint64 gzymsNorm=1;
-        quint64 gzymsSuma=0;
-        quint64 gzymsSumaNorm=0;
-        int litery=0, slowa=0;
+        quint64 suma = 0, sumaNorm = 0, sumaPierwsze = 0, sumaOstatnie = 0;
+        __float128 iloczyn = 1.0, iloczynNorm = 1.0;
+        double iloczynPierwsze = 1, iloczynOstatnie = 1;
+        quint64 gzyms = 1, gzymsNorm = 1, gzymsSuma = 0, gzymsSumaNorm = 0;
+        unsigned int litery = 0, slowa = 0;
 
         // Suma i iloczyn
-        bool iloczynIsMax = false;
-        bool iloczynNormIsMax = false;
+        bool iloczynIsMax = false, iloczynNormIsMax = false;
+
         QMap<int,int> literyMapa;
-        for(int t=0; t<text.size() ;t++)
-            for(int a=0; a<rozmiarAlfabetuHeb; a++)
-                if(text.at(t)==alfabetHeb[a]) {
+        for(int t=0; t < text.size() ;t++)
+            for(int a=0; a < rozmiarAlfabetuHeb; a++)
+                if(text.at(t) == alfabetHeb[a]) {
                     suma += wartosciHeb[a];
                     sumaNorm += wartosciHebNorm[a];
 
-                    quint64 testIloczyn=iloczyn*wartosciHeb[a]; // Possible overflow
-                    if (testIloczyn/wartosciHeb[a] != iloczyn) { iloczynIsMax = true;/* There has been an overflow*/}
-                    else iloczyn=testIloczyn; // No overflow
-                    //iloczyn *= wartosciHeb[a];
+                    // Testuj
+                    if( testFloat128( iloczyn, wartosciHeb[a] ) )
+                        iloczynIsMax = true;
 
-                    quint64 testiloczynNorm=iloczynNorm*wartosciHebNorm[a]; // Possible overflow
-                    if (testiloczynNorm/wartosciHebNorm[a] != iloczynNorm) { iloczynNormIsMax = true;/* There has been an overflow*/}
-                    else iloczynNorm=testiloczynNorm; // No overflow
-                    //iloczynNorm *= wartosciHebNorm[a];
+                    if( testFloat128( iloczynNorm, wartosciHebNorm[a] ) )
+                        iloczynNormIsMax = true;
+
+                    iloczyn *= wartosciHeb[a];
+                    iloczynNorm *= wartosciHebNorm[a];
 
                     // Zliczanie liter do tabeli
                     if( literyMapa.contains( a ) )
@@ -86,6 +122,7 @@ void MainWindow::hebOblicz(){
                     litery++;
                     break;
                 }
+
         // Czyszczenie tabeli liter
         ui->tableWidgetHeb->clearContents();
         while (ui->tableWidgetHeb->rowCount() > 0)
@@ -113,25 +150,37 @@ void MainWindow::hebOblicz(){
         ui->hebIleLiterEdit->setText(QString::number(litery));
         ui->hebSumaEdit->setText(QString::number(suma));
         ui->hebSumaNormEdit->setText(QString::number(sumaNorm));
-        if (text.size()>1) {
+        if (text.size() > 1) {
             if( !litery )
                 iloczyn = iloczynNorm = 0;
             // Iloczyn
-            if( !iloczynIsMax/*iloczyn <= std::numeric_limits<quint64>::max()*/ ){
-                ui->hebIloczynEdit->setText(QString::number(iloczyn));
+            if( !iloczynIsMax )
+            {
+                char float128char[64];
+                quadmath_snprintf(float128char, sizeof float128char, "%.31Qe", iloczyn );
+                ui->hebIloczynEdit->setText(QString::fromLatin1(float128char));
                 ui->hebIloczynEdit->setDisabled(false);
-            } else {
-                ui->hebIloczynEdit->setText("Zbyt duża wartość");
+            }
+            else
+            {
                 ui->hebIloczynEdit->setDisabled(true);
+                ui->hebIloczynEdit->setText("Wynik niedokładny");
             }
+
             // Iloczyn norm
-            if( !iloczynNormIsMax/*iloczynNorm < std::numeric_limits<qreal>::max()*/ ){
-                ui->hebIloczynNormEdit->setText(QString::number(iloczynNorm));
+            if( !iloczynNormIsMax )
+            {
+                char float128char[64];
+                quadmath_snprintf(float128char, sizeof float128char, "%.31Qe", iloczynNorm );
+                ui->hebIloczynNormEdit->setText(QString::fromLatin1(float128char));
                 ui->hebIloczynNormEdit->setDisabled(false);
-            } else {
-                ui->hebIloczynNormEdit->setText("Zbyt duża wartość");
-                ui->hebIloczynNormEdit->setDisabled(true);
             }
+            else
+            {
+                ui->hebIloczynNormEdit->setDisabled(true);
+                ui->hebIloczynNormEdit->setText("Wynik niedokładny");
+            }
+
         } else {
             ui->hebIloczynEdit->clear();
             ui->hebIloczynNormEdit->clear();
@@ -140,8 +189,8 @@ void MainWindow::hebOblicz(){
         // Liczenie gzymsu
         QString sumaString=ui->hebSumaEdit->text();
         ui->hebGzymsLog->clear();
-        for(int g=0;g<sumaString.size();g++){
-            if(g>0) ui->hebGzymsLog->append(QString::number(gzyms)+"*"+sumaString.mid(g,1)+"="
+        for(int g=0; g < sumaString.size(); g++){
+            if(g > 0) ui->hebGzymsLog->append(QString::number(gzyms)+"*"+sumaString.mid(g,1)+"="
                                     +QString::number(gzyms*sumaString.at(g).digitValue()));
             gzyms*=sumaString.at(g).digitValue();
             gzymsSuma+=sumaString.at(g).digitValue();
@@ -150,13 +199,13 @@ void MainWindow::hebOblicz(){
         // Liczenie gzymsu normalnego
         QString sumaNormString=ui->hebSumaNormEdit->text();
         ui->hebGzymsLogNorm->clear();
-        for(int g=0;g<sumaNormString.size();g++){
-            if(g>0) ui->hebGzymsLogNorm->append(QString::number(gzymsNorm)+"*"+sumaNormString.mid(g,1)+"="
+        for(int g=0; g < sumaNormString.size(); g++){
+            if(g > 0) ui->hebGzymsLogNorm->append(QString::number(gzymsNorm)+"*"+sumaNormString.mid(g,1)+"="
                                     +QString::number(gzymsNorm*sumaNormString.at(g).digitValue()));
             gzymsNorm*=sumaNormString.at(g).digitValue();
             gzymsSumaNorm+=sumaNormString.at(g).digitValue();
         }
-        if (text.size()>1) {
+        if (text.size() > 1) {
             ui->hebGzymsEdit->setText(QString::number(gzyms));
             ui->hebGzymsSumaEdit->setText(QString::number(gzymsSuma));
             ui->hebGzymsNormEdit->setText(QString::number(gzymsNorm));
@@ -169,55 +218,64 @@ void MainWindow::hebOblicz(){
         }
 
         // Pierwsze litery
-        ui->hebPierwszeSuma->clear();
-        bool iloczynPierwszeIsMax = false;
-        int t=0;
-        while(t<text.size()){
-            for(int a=0; a<rozmiarAlfabetuHeb; a++){
-                if(text.at(t)==alfabetHeb[a]) {
-                    sumaPierwsze+=wartosciHeb[a];
+        bool iloczynPierwszeIsMax = false, iloczynOstatniIsMax = false;
+        int t = 0;
+        while(t < text.size()){
+            for(int a=0; a < rozmiarAlfabetuHeb; a++){
+                if(text.at(t) == alfabetHeb[a]) {
+                    sumaPierwsze += wartosciHeb[a];
 
-                    quint64 testIloczynPierwsze=iloczynPierwsze*wartosciHeb[a]; // Possible overflow
-                    if (testIloczynPierwsze/wartosciHeb[a] != iloczynPierwsze) { iloczynPierwszeIsMax = true;/* There has been an overflow*/}
-                    else iloczynPierwsze=testIloczynPierwsze; // No overflow
-                    //iloczynPierwsze*=wartosciHeb[a];
+                    iloczynPierwsze *= wartosciHeb[a];
+                    if( testDouble( iloczynPierwsze, wartosciHeb[a] ) )
+                        iloczynPierwszeIsMax = true;
+
+//                    const double eps = 1.0e-14;
+//                    double testIloczynPierwsze = iloczynPierwsze * wartosciHeb[a]; // Possible overflow
+//                    //if (testIloczynPierwsze / wartosciHeb[a] != iloczynPierwsze) { iloczynPierwszeIsMax = true;/* Overflow*/}
+//                    //std::cout << abs( (testIloczynPierwsze / wartosciHeb[a]) - iloczynPierwsze);
+
+//                    qDebug() << QString::number( fabs( (testIloczynPierwsze / wartosciHeb[a]) - iloczynPierwsze), 'g', 20);
+//                    qDebug() << QString::number(1.0e-10, 'g', 20);
+//                    if ( fabs( (testIloczynPierwsze / wartosciHeb[a]) - iloczynPierwsze) > eps ) {
+//                        iloczynPierwszeIsMax = true;
+//                    }
+//                    iloczynPierwsze = testIloczynPierwsze; // No overflow
+
+
                     while(t<text.size() &&
-                          text.at(t)!=QChar(32) && // Znak Spacji
-                          text.at(t)!=QChar(13) && // Znak CR
-                          text.at(t)!=QChar(10)){  // Znak LF
+                          text.at(t) != QChar(32) && // Znak Spacji
+                          text.at(t) != QChar(13) && // Znak CR
+                          text.at(t) != QChar(10)){  // Znak LF
                         ++t;
                     }
+                    // Ostatenie litery
+                    for(int aOst=0; aOst < rozmiarAlfabetuHeb; aOst++)
+                        if(text.at(t - 1) == alfabetHeb[aOst]) {
+                            sumaOstatnie += wartosciHeb[aOst];
+                        }
+
                     ++slowa;
                     break;
                 }
             }
-            t++;
+            ++t;
         }
         ui->hebIleSlowEdit->setText(QString::number(slowa));
         ui->hebPierwszeSuma->setText(QString::number(sumaPierwsze));
+        ui->hebNormPierwSuma->setText(QString::number(sumaOstatnie));
         if (text.size()>2){
             if( !iloczynPierwszeIsMax/*iloczynPierwsze < std::numeric_limits<qreal>::max()*/ ){
-                ui->hebPierwszeIloczyn->setText(QString::number(iloczynPierwsze));
+                ui->hebPierwszeIloczyn->setText(QString::number(iloczynPierwsze, 'g', 20));
                 ui->hebPierwszeIloczyn->setDisabled(false);
             } else{
-                ui->hebPierwszeIloczyn->setText("Zbyt duża wartość");
+                //ui->hebPierwszeIloczyn->setText("Wynik niedokładny");
+                ui->hebPierwszeIloczyn->setText(QString::number(iloczynPierwsze, 'g', 20));
                 ui->hebPierwszeIloczyn->setDisabled(true);
             }
         } else {
             ui->hebPierwszeIloczyn->clear();
         }
 
-    } else {
-        ui->hebSumaEdit->clear();
-        ui->hebIloczynEdit->clear();
-        ui->hebGzymsEdit->clear();
-        ui->hebGzymsSumaEdit->clear();
-        ui->hebSumaNormEdit->clear();
-        ui->hebIloczynNormEdit->clear();
-        ui->hebGzymsNormEdit->clear();
-        ui->hebGzymsSumaNormEdit->clear();
-        ui->hebPierwszeIloczyn->clear();
-        ui->hebPierwszeSuma->clear();
     }
 }
 
@@ -234,12 +292,9 @@ void MainWindow::grekOblicz(){
     }
 
     if(text.size()>0){
-        quint64 suma=0;
-        quint64 sumaPierwsze=0;
-        qreal iloczyn=1;
-        qreal iloczynPierwsze=1;
-        quint64 gzyms=1;
-        quint64 gzymsSuma=0;
+        quint64 suma=0, sumaPierwsze=0;
+        qreal iloczyn=1, iloczynPierwsze=1;
+        quint64 gzyms=1, gzymsSuma=0;
         int litery=0,slowa=0;
 
         // Suma i iloczyn
@@ -299,7 +354,7 @@ void MainWindow::grekOblicz(){
             ui->tableWidgetGrek->setItem( rowInsert, 3, tmpIloczyn );
         }
 
-        //liczymy gzyms
+        // Liczymy gzyms
         ui->grekGzymsLog->clear();
         QString sumaString=ui->grekSumaEdit->text();
         for(int g=0;g<sumaString.size();g++){
@@ -315,7 +370,7 @@ void MainWindow::grekOblicz(){
             ui->grekGzymsEdit->clear();
             ui->grekGzymsSumaEdit->clear();
         }
-        //pierwsze litery
+        // Pierwsze litery
         ui->grekPierwszeSuma->clear();
         int t=0;
 
@@ -346,10 +401,9 @@ void MainWindow::grekOblicz(){
                 ui->grekPierwszeIloczyn->setText("Zbyt duża wartość");
                 ui->grekPierwszeIloczyn->setDisabled(true);
             }
-         }else {
+        } else {
             ui->grekPierwszeIloczyn->clear();
         }
-
     } else {
         ui->grekSumaEdit->clear();
         ui->grekIloczynEdit->clear();
@@ -381,7 +435,6 @@ void MainWindow::on_hebWklej_clicked()
 {
     QClipboard *schowek = QApplication::clipboard();
     ui->hebTextEdit->append( schowek->text() );
-    //ui->hebTextEdit->setPlainText(schowek->text());
 }
 
 void MainWindow::on_grekWyczysc_clicked()
@@ -404,7 +457,6 @@ void MainWindow::on_grekWklej_clicked()
     QString text = schowek->text();
     grekUsunAkcenty(text);
     ui->grekTextEdit->append(text);
-    //ui->grekTextEdit->setPlainText(schowek->text());
 }
 
 void MainWindow::on_hebKopiuj_clicked()
@@ -426,7 +478,7 @@ void MainWindow::on_grekKopiuj_clicked()
 }
 
 void MainWindow::ustawAlfabety(){
-    //ustawienie jezyka dla editTextow
+    // Ustawienie jezyka dla editTextow
     ui->hebTextEdit->ustawJezyk( 0 );
     ui->grekTextEdit->ustawJezyk( 1 );
 
@@ -576,40 +628,6 @@ void MainWindow::on_actionWyswietl_alfabety_triggered()
 void MainWindow::on_actionAktualizuj_program_triggered()
 {
     QProcess::startDetached("LUpdate.exe "+wersjaProgramuStr());
-}
-
-void MainWindow::on_groupBoxGrek_toggled()
-{
-    QRect grekSize( ui->groupBoxGrek->pos(), ui->groupBoxGrek->size() );
-    QRect hebSize( ui->groupBoxHeb->pos(), ui->groupBoxHeb->size() );
-    QRect hebTextSize( ui->hebTextEdit->pos(), ui->hebTextEdit->size() );
-    int vMoveSize = 230;
-
-    if( ui->groupBoxGrek->isChecked() ){
-        // Grek
-        grekSize.moveTop( grekSize.top() - vMoveSize );
-        grekSize.setHeight( 261 );
-        ui->groupBoxGrek->setGeometry( grekSize );
-        // Heb
-        hebSize.setHeight( 261 );
-        ui->groupBoxHeb->setGeometry( hebSize );
-        ui->frameHebPrzyciski->move( ui->frameHebPrzyciski->pos().x(),
-                                     ui->frameHebPrzyciski->pos().y() - vMoveSize );
-        hebTextSize.setHeight( 201 );
-        ui->hebTextEdit->setGeometry( hebTextSize );
-    } else {
-        // Grek
-        grekSize.moveTop( grekSize.top() + vMoveSize );
-        grekSize.setHeight( 20 );
-        ui->groupBoxGrek->setGeometry( grekSize );
-        // Heb
-        hebSize.setHeight( 261 + vMoveSize );
-        ui->groupBoxHeb->setGeometry( hebSize );
-        ui->frameHebPrzyciski->move( ui->frameHebPrzyciski->pos().x(),
-                                     ui->frameHebPrzyciski->pos().y() + vMoveSize );
-        hebTextSize.setHeight( 201 + vMoveSize );
-        ui->hebTextEdit->setGeometry( hebTextSize );
-    }
 }
 
 void MainWindow::grekUsunAkcenty(QString &text){
