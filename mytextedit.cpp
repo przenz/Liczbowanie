@@ -83,24 +83,21 @@ void myTextEdit::keyPressEvent(QKeyEvent *e){
 void myTextEdit::ustawJezyk(int jezyk){
     jezykPisania = jezyk;
 
-    //heb opcje tekstu
-    QTextOption textOpt = this->document()->defaultTextOption();
-    textOpt.setTextDirection(Qt::RightToLeft);
-    //heb opcje kursora
-    QTextCursor textCur = this->textCursor();
-    QTextBlockFormat textBlockF = textCur.blockFormat();
-    textBlockF.setLayoutDirection( Qt::RightToLeft );
-    textCur.setBlockFormat( textBlockF );
+    if ( jezykPisania == 0 ) // heb
+    {
+        QTextOption textOpt = this->document()->defaultTextOption();
+        textOpt.setTextDirection(Qt::RightToLeft);
 
-    switch (jezyk){
-        case 0: //heb
-            this->document()->setDefaultTextOption( textOpt );
-            this->setTextCursor( textCur );
-            break;
+        QTextCursor textCur = this->textCursor();
+        QTextBlockFormat textBlockF = textCur.blockFormat();
+        textBlockF.setLayoutDirection( Qt::RightToLeft );
+        textCur.setBlockFormat( textBlockF );
 
-        case 1: //grek
-            break;
-    }
+        this->document()->setDefaultTextOption( textOpt );
+        this->setTextCursor( textCur );
+    }/* else if( jezykPisania == 1 ){
+
+    }*/
 }
 
 QString myTextEdit::getZaznaczonyTekst(){
