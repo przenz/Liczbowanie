@@ -279,24 +279,22 @@ void MainWindow::hebOblicz(){
 
 void MainWindow::grekOblicz(){
     QString text;
+    // Accents are removed when pasting text
     if( !ui->grekTextEdit->getZaznaczonyTekst().isNull() ){
         text = ui->grekTextEdit->getZaznaczonyTekst();
     } else {
         text = ui->grekTextEdit->toPlainText();
-//        if(text.size()>0){
-//            grekUsunAkcenty(text);
-//            ui->grekTextEdit->insertPlainText(text);
-//        }
     }
 
     if(text.size()>0){
-        quint64 suma = 0, sumaPierwsze = 0;
-        __float128 iloczyn = 1.0, iloczynPierwsze = 1.0;
-        quint64 gzyms=1, gzymsSuma=0;
-        int litery=0,slowa=0;
+        quint64 suma = 0, sumaPierwsze = 0, sumaOstatnie = 0;
+        __float128 iloczyn = 0.0, iloczynPierwsze = 1.0, iloczynOstatnie = 1.0;
+        quint64 gzyms = 1, gzymsSuma=  0;
+        int litery = 0, slowa=0;
 
         // Suma i iloczyn
         bool iloczynNotValid = false, iloczynPierwNotValid = false;
+        bool iloczynOstatnieNotValid = false;
         QMap<int,int> literyMapa;
         for(int t=0;t<text.size();t++){
             for(int a=0; a<rozmiarAlfabetuGrek; a++){
@@ -325,8 +323,6 @@ void MainWindow::grekOblicz(){
         ui->grekSumaEdit->setText(QString::number(suma));
         if (text.size()>1) {
             if( !iloczynNotValid ){
-                // ui->grekIloczynEdit->setText(QString::number(iloczyn,'g', 15));
-                // ui->grekIloczynEdit->setDisabled(false);
                 char float128char[64];
                 quadmath_snprintf(float128char, sizeof float128char, "%.31Qe", iloczyn );
                 ui->grekIloczynEdit->setText(QString::fromLatin1(float128char));
@@ -351,6 +347,7 @@ void MainWindow::grekOblicz(){
 
         // Pierwsze litery
         int t = 0;
+
         while(t<text.size()){
             for(int a=0; a<rozmiarAlfabetuGrek; a++){
                 if(text.at(t)==alfabetGrek[a]) {
@@ -367,6 +364,16 @@ void MainWindow::grekOblicz(){
                           text.at(t)!=QChar(10)){  // Znak LF
                         t++;
                     }
+                    // Ostatenie litery
+                    for(int aOst=0; aOst < rozmiarAlfabetuGrek; aOst++)
+                        if(text.at(t - 1) == alfabetGrek[aOst]) {
+                            sumaOstatnie += wartosciGrek[aOst];
+
+                            if( testFloat128( iloczynOstatnie, wartosciGrek[aOst] ) )
+                                iloczynOstatnieNotValid = true;
+                            iloczynOstatnie *= wartosciGrek[aOst];
+                        }
+
                     ++slowa;
                     break;
                 }
@@ -385,13 +392,13 @@ void MainWindow::grekOblicz(){
             ui->grekGzymsSumaEdit->clear();
         }
 
-        // Pierwsze litery
+        // Pierwsze i ostatnie litery
         ui->grekIleSlowEdit->setText(QString::number(slowa));
         ui->grekPierwszeSuma->setText(QString::number(sumaPierwsze));
+        ui->grekOstatnieSuma->setText(QString::number(sumaOstatnie));
         if (text.size()>2){
+            // Pierwsze litery iloczyn
             if( !iloczynPierwNotValid ){
-                //ui->grekPierwszeIloczyn->setText(QString::number(iloczynPierwsze,'g', 15));
-                //ui->grekPierwszeIloczyn->setDisabled(false);
                 char float128char[64];
                 quadmath_snprintf(float128char, sizeof float128char, "%.31Qe", iloczynPierwsze );
                 ui->grekPierwszeIloczyn->setText(QString::fromLatin1(float128char));
@@ -400,8 +407,19 @@ void MainWindow::grekOblicz(){
                 ui->grekPierwszeIloczyn->setText("Wynik niedokładny");
                 ui->grekPierwszeIloczyn->setDisabled(true);
             }
+            // Ostatnie litery ilcozyn
+            if( !iloczynOstatnieNotValid ){
+                char float128char[64];
+                quadmath_snprintf(float128char, sizeof float128char, "%.31Qe", iloczynOstatnie );
+                ui->grekOstatnieIloczyn->setText(QString::fromLatin1(float128char));
+                ui->grekOstatnieIloczyn->setDisabled(false);
+            } else {
+                ui->grekOstatnieIloczyn->setText("Wynik niedokładny");
+                ui->grekOstatnieIloczyn->setDisabled(true);
+            }
         } else {
             ui->grekPierwszeIloczyn->clear();
+            ui->grekOstatnieIloczyn->clear();
         }
 
         // Czyszczenie tabeli liter
@@ -431,7 +449,9 @@ void MainWindow::grekOblicz(){
         ui->grekGzymsEdit->clear();
         ui->grekGzymsSumaEdit->clear();
         ui->grekPierwszeSuma->clear();
+        ui->grekOstatnieSuma->clear();
         ui->grekPierwszeIloczyn->clear();
+        ui->grekOstatnieIloczyn->clear();
     }
 }
 
