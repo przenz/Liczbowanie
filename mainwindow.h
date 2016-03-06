@@ -16,7 +16,7 @@ public:
     ~MainWindow();
 
 private:
-    static const float wersjaProgramuLiczbowanie = 0.90f;
+    static const float wersjaProgramuLiczbowanie = 0.91f;
     Ui::MainWindow *ui;
     QChar *alfabetHeb;
     int *wartosciHeb;

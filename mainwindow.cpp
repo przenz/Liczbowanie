@@ -112,26 +112,6 @@ void MainWindow::hebOblicz(){
                 break;
             }
 
-    // Liczenie gzymsu
-    QString sumaString=ui->hebSumaEdit->text();
-    ui->hebGzymsLog->clear();
-    for(int g=0; g < sumaString.size(); g++){
-        if(g > 0) ui->hebGzymsLog->append(QString::number(gzyms)+"*"+sumaString.mid(g,1)+"="
-                                +QString::number(gzyms*sumaString.at(g).digitValue()));
-        gzyms*=sumaString.at(g).digitValue();
-        gzymsSuma+=sumaString.at(g).digitValue();
-    }
-
-    // Liczenie gzymsu normalnego
-    QString sumaNormString=ui->hebSumaNormEdit->text();
-    ui->hebGzymsLogNorm->clear();
-    for(int g=0; g < sumaNormString.size(); g++){
-        if(g > 0) ui->hebGzymsLogNorm->append(QString::number(gzymsNorm)+"*"+sumaNormString.mid(g,1)+"="
-                                +QString::number(gzymsNorm*sumaNormString.at(g).digitValue()));
-        gzymsNorm*=sumaNormString.at(g).digitValue();
-        gzymsSumaNorm+=sumaNormString.at(g).digitValue();
-    }
-
     // Pierwsze litery
     bool iloczynPierwszeIsMax = false, iloczynOstatnieIsMax = false;
     int t = 0;
@@ -208,6 +188,26 @@ void MainWindow::hebOblicz(){
     ui->hebIleLiterEdit->setText(QString::number(litery));
     ui->hebSumaEdit->setText(QString::number(suma));
     ui->hebSumaNormEdit->setText(QString::number(sumaNorm));
+
+    // Liczenie gzymsu (korzysta z sumy)
+    QString sumaString = ui->hebSumaEdit->text();
+    ui->hebGzymsLog->clear();
+    for(int g=0; g < sumaString.size(); g++){
+        if(g > 0) ui->hebGzymsLog->append(QString::number(gzyms)+"*"+sumaString.mid(g,1) + "="
+                                        + QString::number(gzyms*sumaString.at(g).digitValue()));
+        gzyms *= sumaString.at(g).digitValue();
+        gzymsSuma += sumaString.at(g).digitValue();
+    }
+
+    // Liczenie gzymsu normalnego (korzysta z sumy)
+    QString sumaNormString=ui->hebSumaNormEdit->text();
+    ui->hebGzymsLogNorm->clear();
+    for(int g=0; g < sumaNormString.size(); g++){
+        if(g > 0) ui->hebGzymsLogNorm->append(QString::number(gzymsNorm)+"*"+sumaNormString.mid(g,1)+"="
+                                +QString::number(gzymsNorm*sumaNormString.at(g).digitValue()));
+        gzymsNorm*=sumaNormString.at(g).digitValue();
+        gzymsSumaNorm+=sumaNormString.at(g).digitValue();
+    }
 
     // Gzymsy
     if (text.size() > 1) {
@@ -288,7 +288,7 @@ void MainWindow::grekOblicz(){
 
     if(text.size()>0){
         quint64 suma = 0, sumaPierwsze = 0, sumaOstatnie = 0;
-        __float128 iloczyn = 0.0, iloczynPierwsze = 1.0, iloczynOstatnie = 1.0;
+        __float128 iloczyn = 1.0, iloczynPierwsze = 1.0, iloczynOstatnie = 1.0;
         quint64 gzyms = 1, gzymsSuma=  0;
         int litery = 0, slowa=0;
 
