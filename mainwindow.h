@@ -16,7 +16,7 @@ public:
     ~MainWindow();
 
 private:
-    static const float wersjaProgramuLiczbowanie = 0.91f;
+    static const float wersjaProgramuLiczbowanie = 1.00f;
     Ui::MainWindow *ui;
     QChar *alfabetHeb;
     int *wartosciHeb;
@@ -51,6 +51,8 @@ private slots:
 
     void grekUsunAkcenty(QString &text);
     void on_actionPobierz_Liczbowanie_triggered();
+    void on_hebHideZeros_toggled(bool checked);
+    void on_grekHideZeros_toggled(bool checked);
 };
 
 #endif // MAINWINDOW_H

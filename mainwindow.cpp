@@ -66,6 +66,26 @@ bool testFloat128( __float128 & iloczyn, int wartoscHeb )
     return false;
 }
 
+QString float128ToQstring( __float128 float128Number )
+{
+    char float128char[64];
+    quadmath_snprintf(float128char, sizeof float128char, "%.31Qe", float128Number );
+
+    return QString::fromLatin1(float128char);
+}
+
+QString hideZeroes( __float128 float128Number )
+{
+    QString origNumStr( float128ToQstring(float128Number) );
+
+    // Remove dot
+    origNumStr.remove(1, 1);
+    // Remove zeroes and ending
+    origNumStr.remove( QRegExp("0*e\\+\\d*$") );
+
+    return origNumStr;
+}
+
 void MainWindow::hebOblicz(){
     QString text;
     if( !ui->hebTextEdit->getZaznaczonyTekst().isNull() )
@@ -155,9 +175,14 @@ void MainWindow::hebOblicz(){
         // Iloczyn
         if( !iloczynIsMax )
         {
-            char float128char[64];
-            quadmath_snprintf(float128char, sizeof float128char, "%.31Qe", iloczyn );
-            ui->hebIloczynEdit->setText(QString::fromLatin1(float128char));
+            if( ui->hebHideZeros->isChecked())
+            {
+                ui->hebIloczynEdit->setText(hideZeroes(iloczyn));
+            }
+            else
+            {
+                ui->hebIloczynEdit->setText(float128ToQstring(iloczyn));
+            }
             ui->hebIloczynEdit->setDisabled(false);
         }
         else
@@ -169,9 +194,15 @@ void MainWindow::hebOblicz(){
         // Iloczyn norm
         if( !iloczynNormIsMax )
         {
-            char float128char[64];
-            quadmath_snprintf(float128char, sizeof float128char, "%.31Qe", iloczynNorm );
-            ui->hebIloczynNormEdit->setText(QString::fromLatin1(float128char));
+            if( ui->hebHideZeros->isChecked())
+            {
+                ui->hebIloczynNormEdit->setText(hideZeroes(iloczynNorm));
+            }
+            else
+            {
+                ui->hebIloczynNormEdit->setText(float128ToQstring(iloczynNorm));
+            }
+
             ui->hebIloczynNormEdit->setDisabled(false);
         }
         else
@@ -192,7 +223,8 @@ void MainWindow::hebOblicz(){
     // Liczenie gzymsu (korzysta z sumy)
     QString sumaString = ui->hebSumaEdit->text();
     ui->hebGzymsLog->clear();
-    for(int g=0; g < sumaString.size(); g++){
+    for(int g=0; g < sumaString.size(); g++)
+    {
         if(g > 0) ui->hebGzymsLog->append(QString::number(gzyms)+"*"+sumaString.mid(g,1) + "="
                                         + QString::number(gzyms*sumaString.at(g).digitValue()));
         gzyms *= sumaString.at(g).digitValue();
@@ -202,7 +234,8 @@ void MainWindow::hebOblicz(){
     // Liczenie gzymsu normalnego (korzysta z sumy)
     QString sumaNormString=ui->hebSumaNormEdit->text();
     ui->hebGzymsLogNorm->clear();
-    for(int g=0; g < sumaNormString.size(); g++){
+    for(int g=0; g < sumaNormString.size(); g++)
+    {
         if(g > 0) ui->hebGzymsLogNorm->append(QString::number(gzymsNorm)+"*"+sumaNormString.mid(g,1)+"="
                                 +QString::number(gzymsNorm*sumaNormString.at(g).digitValue()));
         gzymsNorm*=sumaNormString.at(g).digitValue();
@@ -210,12 +243,15 @@ void MainWindow::hebOblicz(){
     }
 
     // Gzymsy
-    if (text.size() > 1) {
+    if (text.size() > 1)
+    {
         ui->hebGzymsEdit->setText(QString::number(gzyms));
         ui->hebGzymsSumaEdit->setText(QString::number(gzymsSuma));
         ui->hebGzymsNormEdit->setText(QString::number(gzymsNorm));
         ui->hebGzymsSumaNormEdit->setText(QString::number(gzymsSumaNorm));
-    } else {
+    }
+    else
+    {
         ui->hebGzymsEdit->clear();
         ui->hebGzymsSumaEdit->clear();
         ui->hebGzymsNormEdit->clear();
@@ -229,26 +265,42 @@ void MainWindow::hebOblicz(){
 
     if (text.size()>2){
         // Pierwsze litery iloczyn
-        if( !iloczynPierwszeIsMax ){
-            char float128char[64];
-            quadmath_snprintf(float128char, sizeof float128char, "%.31Qe", iloczynPierwsze );
-            ui->hebPierwszeIloczyn->setText(QString::fromLatin1(float128char));
+        if( !iloczynPierwszeIsMax )
+        {
+            if( ui->hebHideZeros->isChecked())
+            {
+                ui->hebPierwszeIloczyn->setText(hideZeroes(iloczynPierwsze));
+            }
+            else
+            {
+                ui->hebPierwszeIloczyn->setText(float128ToQstring(iloczynPierwsze));
+            }
             ui->hebPierwszeIloczyn->setDisabled(false);
         } else{
             ui->hebPierwszeIloczyn->setText("Wynik niedokładny");
             ui->hebPierwszeIloczyn->setDisabled(true);
         }
         // Ostatnie litery iloczyn
-        if( !iloczynOstatnieIsMax ){
-            char float128char[64];
-            quadmath_snprintf(float128char, sizeof float128char, "%.31Qe", iloczynOstatnie );
-            ui->hebOstatnieIloczyn->setText(QString::fromLatin1(float128char));
+        if( !iloczynOstatnieIsMax )
+        {
+            if( ui->hebHideZeros->isChecked())
+            {
+                ui->hebOstatnieIloczyn->setText(hideZeroes(iloczynOstatnie));
+            }
+            else
+            {
+                ui->hebOstatnieIloczyn->setText(float128ToQstring(iloczynOstatnie));
+            }
             ui->hebOstatnieIloczyn->setDisabled(false);
-        } else{
+        }
+        else
+        {
             ui->hebOstatnieIloczyn->setText("Wynik niedokładny");
             ui->hebOstatnieIloczyn->setDisabled(true);
         }
-    } else {
+    }
+    else
+    {
         ui->hebPierwszeIloczyn->clear();
         ui->hebOstatnieIloczyn->clear();
     }
@@ -321,13 +373,22 @@ void MainWindow::grekOblicz(){
         // formy
         ui->grekIleLiterEdit->setText(QString::number(litery));
         ui->grekSumaEdit->setText(QString::number(suma));
-        if (text.size()>1) {
-            if( !iloczynNotValid ){
-                char float128char[64];
-                quadmath_snprintf(float128char, sizeof float128char, "%.31Qe", iloczyn );
-                ui->grekIloczynEdit->setText(QString::fromLatin1(float128char));
+        if (text.size()>1)
+        {
+            if( !iloczynNotValid )
+            {
+                if( ui->grekHideZeros->isChecked())
+                {
+                    ui->grekIloczynEdit->setText(hideZeroes(iloczyn));
+                }
+                else
+                {
+                    ui->grekIloczynEdit->setText(float128ToQstring(iloczyn));
+                }
                 ui->grekIloczynEdit->setDisabled(false);
-            } else {
+            }
+            else
+            {
                 ui->grekIloczynEdit->setDisabled(true);
                 ui->grekIloczynEdit->setText("Wynik niedokładny");
             }
@@ -338,7 +399,8 @@ void MainWindow::grekOblicz(){
         // Liczymy gzyms (korzysta z sumy)
         ui->grekGzymsLog->clear();
         QString sumaString = ui->grekSumaEdit->text();
-        for(int g=0;g<sumaString.size();g++){
+        for(int g=0;g<sumaString.size();g++)
+        {
             if(g>0) ui->grekGzymsLog->append(QString::number(gzyms)+"*"+sumaString.mid(g,1)+"="
                                     +QString::number(gzyms*sumaString.at(g).digitValue()));
             gzyms*=sumaString.at(g).digitValue();
@@ -399,9 +461,15 @@ void MainWindow::grekOblicz(){
         if (text.size()>2){
             // Pierwsze litery iloczyn
             if( !iloczynPierwNotValid ){
-                char float128char[64];
-                quadmath_snprintf(float128char, sizeof float128char, "%.31Qe", iloczynPierwsze );
-                ui->grekPierwszeIloczyn->setText(QString::fromLatin1(float128char));
+                if( ui->grekHideZeros->isChecked())
+                {
+                    ui->grekPierwszeIloczyn->setText(hideZeroes(iloczynPierwsze));
+                }
+                else
+                {
+                    ui->grekPierwszeIloczyn->setText(float128ToQstring(iloczynPierwsze));
+                }
+
                 ui->grekPierwszeIloczyn->setDisabled(false);
             } else {
                 ui->grekPierwszeIloczyn->setText("Wynik niedokładny");
@@ -409,9 +477,14 @@ void MainWindow::grekOblicz(){
             }
             // Ostatnie litery ilcozyn
             if( !iloczynOstatnieNotValid ){
-                char float128char[64];
-                quadmath_snprintf(float128char, sizeof float128char, "%.31Qe", iloczynOstatnie );
-                ui->grekOstatnieIloczyn->setText(QString::fromLatin1(float128char));
+                if( ui->grekHideZeros->isChecked())
+                {
+                    ui->grekOstatnieIloczyn->setText(hideZeroes(iloczynOstatnie));
+                }
+                else
+                {
+                    ui->grekOstatnieIloczyn->setText(float128ToQstring(iloczynOstatnie));
+                }
                 ui->grekOstatnieIloczyn->setDisabled(false);
             } else {
                 ui->grekOstatnieIloczyn->setText("Wynik niedokładny");
@@ -681,4 +754,14 @@ void MainWindow::grekUsunAkcenty(QString &text){
 void MainWindow::on_actionPobierz_Liczbowanie_triggered()
 {
      QDesktopServices::openUrl(QUrl("http://przenz.linuxpl.info/liczbowanie/"));
+}
+
+void MainWindow::on_hebHideZeros_toggled(bool /*checked*/)
+{
+    hebOblicz();
+}
+
+void MainWindow::on_grekHideZeros_toggled(bool /*checked*/)
+{
+    grekOblicz();
 }
